@@ -13,7 +13,7 @@ impl<'a, T: std::clone::Clone> ActionObserver<'a, T> {
     /// static mut logging_fn: fn(&mut i32)->() = |val: &mut i32|{
     ///     println!("Current value is:{}",val);
     /// };
-    /// let mut val = ActionObserver::new(1, unsafe{ & mut logging_fn});
+    /// let mut val = ActionObserver::new(1, unsafe{ &mut logging_fn});
     /// //now we can modify the value as we wish
     /// *val = 5;
     /// // you should see 'Current value is:1' in your terminal
@@ -40,19 +40,23 @@ impl<'a, T: std::clone::Clone + std::cmp::PartialEq> DerefMut for ActionObserver
 
 #[cfg(test)]
 mod tests {
-    use std::{i32, ptr::addr_of_mut};
+    use std::i32;
 
     use super::*;
 
     #[test]
     fn deref_test() {
-        static mut outside_the_scope_var: i32 = 0;
-        static mut function: fn(&mut i32) -> () = |curr: &mut i32| unsafe {
-            outside_the_scope_var = *curr;
+        static mut OUTSIDE_THE_SCOPE_VAR: i32 = 0;
+        static mut FUNCTION: fn(&mut i32) -> () = |curr: &mut i32| unsafe {
+            OUTSIDE_THE_SCOPE_VAR = *curr;
         };
-        let mut val = ActionObserver::new(5, unsafe { &mut function });
+        let mut val = ActionObserver::new(5, unsafe { &mut FUNCTION });
         assert_eq!(*val, 5);
+        unsafe {
+            assert_eq!(OUTSIDE_THE_SCOPE_VAR, 0);
+        }
         *val = 3;
+        unsafe { assert_eq!(OUTSIDE_THE_SCOPE_VAR, 5) }
         assert_eq!(*val, 3);
     }
 }
