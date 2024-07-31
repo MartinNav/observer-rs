@@ -44,7 +44,7 @@ mod tests {
              outside_the_scope_var = *prev;
          };
          let mut val = ActionObserver::new(5, &mut function);
-        val.value=3;
+        *val=3;
         assert_eq!(outside_the_scope_var,5);
 
 
