@@ -1,15 +1,25 @@
 use std::ops::{Deref, DerefMut};
-
+/// This struct allows execution of specified function before the value of given variable is
+/// changed. Basically it is executing your function on mutable deffer
 pub struct ActionObserver<'a, T: std::clone::Clone> {
-    pub value: T,
-    previous: T,
-    func: &'a mut dyn FnMut(&T, &mut T) -> (),
+    value: T,
+    func: &'a mut dyn FnMut(&mut T) -> (),
 }
 impl<'a, T: std::clone::Clone> ActionObserver<'a, T> {
-    fn new(value: T, handle_function: &'static mut dyn FnMut(&T, &mut T) -> ()) -> Self {
+    /// Possible usecases are for debug logging when you need to see variable value every time
+    /// before it is changed or changing the value if needed
+    /// ```rust
+    /// static mut logging_fn: fn(&mut i32)->() = |val: &mut i32|{
+    ///     println!("Current value is:{}",val);
+    /// };
+    /// let mut val = ActionObserver::new(1, unsafe{ & mut logging_fn});
+    /// //now we can modify the value as we wish
+    /// *val = 5;
+    /// // you should see 'Current value is:1' in your terminal
+    /// ```
+    fn new(value: T, handle_function: &'static mut dyn FnMut(&mut T) -> ()) -> Self {
         ActionObserver {
             value: value.clone(),
-            previous: value,
             func: handle_function,
         }
     }
@@ -22,10 +32,7 @@ impl<'a, T: std::clone::Clone> Deref for ActionObserver<'a, T> {
 }
 impl<'a, T: std::clone::Clone + std::cmp::PartialEq> DerefMut for ActionObserver<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        if self.value != self.previous {
-            (self.func)(&self.previous, &mut self.value);
-        }
-        self.previous = self.value.clone();
+            (self.func)(&mut self.value);
         &mut self.value
     }
 }
@@ -37,16 +44,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test1() {
+    fn deref_test() {
         static mut outside_the_scope_var: i32 = 0;
-        static mut function: fn(&i32, &mut i32) -> () = |prev: &i32, curr: &mut i32| unsafe {
-            outside_the_scope_var = *prev;
+        static mut function: fn(&mut i32) -> () = |curr: &mut i32| unsafe {
+            outside_the_scope_var = *curr;
         };
         let mut val = ActionObserver::new(5, unsafe { &mut function });
+        assert_eq!(*val, 5);
         *val = 3;
-        unsafe {
-            assert_eq!(outside_the_scope_var, 5);
-        }
         assert_eq!(*val, 3);
     }
 }
